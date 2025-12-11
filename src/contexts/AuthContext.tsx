@@ -370,14 +370,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const buildNotificationWebSocketUrl = useCallback((): string | null => {
     try {
-      const employeeUrl = new URL(env.employeeApiUrl);
-      const protocol = employeeUrl.protocol === "https:" ? "wss:" : "ws:";
-      const basePath = employeeUrl.pathname.replace(/\/$/, "");
+      // Use the gateway URL and convert to WebSocket protocol
+      // Nginx routes /ws/* to the notification service
+      // Fallback: extract base URL from apiBaseUrl by removing /api/auth suffix
+      const gatewayUrl = (env as any).apiGatewayUrl || env.apiBaseUrl.replace(/\/api\/auth\/?$/, '');
+      const protocol = gatewayUrl.startsWith("https") ? "wss:" : "ws:";
+      const host = gatewayUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
       
-      // Build base WebSocket URL
-      const url = `${protocol}//${employeeUrl.host}${basePath}/ws/notifications`;
+      // Build WebSocket URL via Nginx gateway /ws/ route
+      const url = `${protocol}//${host}/ws/notifications`;
       
-      // Backend now supports both cookie and query param authentication:
+      // Backend supports both cookie and query param authentication:
       // 1. HTTP-only cookie (primary, most secure) - sent automatically by browser
       // 2. Query parameter ?token=JWT (fallback for programmatic access)
       
@@ -386,13 +389,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (token) {
         // If we found an accessible token, send it as query param for redundancy
-        // Backend will check query param first, then fall back to cookie
         console.info("[WebSocket] Using token from accessible storage as query parameter");
         return `${url}?token=${encodeURIComponent(token)}`;
       }
       
       // No accessible token found - rely on HTTP-only cookie sent by browser
-      // This is the standard and most secure approach
       console.info("[WebSocket] Using HTTP-only cookie authentication (sent automatically by browser)");
       return url;
     } catch (error) {
