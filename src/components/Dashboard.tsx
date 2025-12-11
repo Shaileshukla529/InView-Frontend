@@ -23,6 +23,8 @@ import {
   ChevronDown,
   AlertTriangle,
   CalendarIcon,
+  Loader2,
+  UserRoundSearch,
 } from "lucide-react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
@@ -115,11 +117,25 @@ type ActivityItem = {
   avatar: string;
 };
 
+// This is the expected API response shape
+type DepartmentPerformanceResponse = {
+  department: string;
+  total_employees: number;
+  present: number;
+  absent: number;
+  late: number;
+  on_leave: number;
+};
+
+// This will be our frontend state type
 type DepartmentDatum = {
   department: string;
   present: number;
-  total: number;
+  total: number; // This will be total_employees
   percentage: number;
+  absent: number; // <-- ADDED
+  onLeave: number; // <-- ADDED
+  late: number; // <-- ADDED
 };
 
 type AlertMeta = {
@@ -188,49 +204,6 @@ const STATS_TEMPLATE: ReadonlyArray<StatCard> = [
   },
 ];
 
-const RECENT_ACTIVITY: ReadonlyArray<ActivityItem> = Object.freeze([
-  {
-    id: 1,
-    name: "Sarah Johnson",
-    department: "Engineering",
-    time: "2 minutes ago",
-    status: "On Time",
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah",
-  },
-  {
-    id: 2,
-    name: "Michael Brown",
-    department: "Sales",
-    time: "5 minutes ago",
-    status: "Late",
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Michael",
-  },
-  {
-    id: 3,
-    name: "Emily Davis",
-    department: "Engineering",
-    time: "8 minutes ago",
-    status: "On Time",
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Emily",
-  },
-  {
-    id: 4,
-    name: "David Wilson",
-    department: "HR",
-    time: "12 minutes ago",
-    status: "On Time",
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=David",
-  },
-  {
-    id: 5,
-    name: "Jennifer Lee",
-    department: "Finance",
-    time: "15 minutes ago",
-    status: "On Time",
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Jennifer",
-  },
-]);
-
 const ATTENDANCE_TREND = Object.freeze([
   { date: "Jan 1", present: 220, absent: 25, onLeave: 10, projected: null },
   { date: "Jan 5", present: 225, absent: 15, onLeave: 5, projected: null },
@@ -240,15 +213,6 @@ const ATTENDANCE_TREND = Object.freeze([
   { date: "Jan 25", present: 215, absent: 22, onLeave: 8, projected: null },
   { date: "Jan 30", present: 222, absent: 18, onLeave: 5, projected: 225 },
   { date: "Feb 5", present: null, absent: null, onLeave: null, projected: 228 },
-]);
-
-const DEPARTMENT_DATA: ReadonlyArray<DepartmentDatum> = Object.freeze([
-  { department: "Engineering", present: 45, total: 50, percentage: 90 },
-  { department: "Marketing", present: 28, total: 33, percentage: 85 },
-  { department: "Sales", present: 30, total: 36, percentage: 83 },
-  { department: "HR", present: 18, total: 20, percentage: 90 },
-  { department: "Finance", present: 22, total: 25, percentage: 88 },
-  { department: "Operations", present: 37, total: 40, percentage: 93 },
 ]);
 
 const WEEKLY_COMPARISON = Object.freeze([
@@ -377,42 +341,44 @@ QuickActions.displayName = "QuickActions";
 
 export const Dashboard = memo(function Dashboard() {
   const [timeRange, setTimeRange] = useState("week");
-  const [activityFilter, setActivityFilter] =
-    useState<ActivityFilter>("all");
+  const [activityFilter, setActivityFilter] = useState<ActivityFilter>("all");
   const { selectedDate, setSelectedDate } = useDashboard();
   const [metricCards, setMetricCards] = useState<StatCard[]>(() =>
     STATS_TEMPLATE.map((card) => ({ ...card }))
   );
-  
+
   // Dynamic data states
   const [weeklyComparison, setWeeklyComparison] = useState(WEEKLY_COMPARISON);
   const [alerts, setAlerts] = useState(ALERTS);
-  const [departmentData, setDepartmentData] = useState(DEPARTMENT_DATA);
+  const [departmentData, setDepartmentData] = useState<DepartmentDatum[]>([]);
+  const [isDeptLoading, setIsDeptLoading] = useState(true);
+  const [liveActivity, setLiveActivity] = useState<ActivityItem[]>([]);
+  const [isActivityLoading, setIsActivityLoading] = useState(true);
 
   useEffect(() => {
     const fetchSummary = async () => {
       try {
-                const dateString = selectedDate.toLocaleDateString('en-CA');
-                console.log("Fetching dashboard summary for date:", selectedDate); // Debug log
-        const { data } = await api.get(
+        const dateString = selectedDate.toLocaleDateString("en-CA");
+        console.log("Fetching dashboard summary for date:", selectedDate); // Debug log
+        const { data } = (await api.get(
           `${env.attendanceApiUrl}/summary/dashboard`,
           {
             params: {
-        selected_date: dateString  
-      },
-            headers: { Authorization: `Bearer Token` }
+              selected_date: dateString,
+            },
+            headers: { Authorization: `Bearer Token` },
           }
-        ) as { data: ApiDashboardResponse };
+        )) as { data: ApiDashboardResponse };
 
         console.log("Dashboard API Response:", data); // Debug log
 
         // Map API response to metric cards
         if (data?.stats) {
           const apiStats = data.stats;
-          
+
           const updatedCards = STATS_TEMPLATE.map((card) => {
             let apiData = null;
-            
+
             // Map each card to corresponding API data
             switch (card.label) {
               case "Total Employees":
@@ -437,12 +403,16 @@ export const Dashboard = memo(function Dashboard() {
               ...card,
               value: String(apiData.value ?? card.value),
               change: apiData.change ?? card.change,
-              trend: (apiData.trend === "up" || apiData.trend === "down" || apiData.trend === "neutral")
-                ? apiData.trend
-                : card.trend,
-              percentage: typeof apiData.percentage === "number" 
-                ? apiData.percentage 
-                : card.percentage,
+              trend:
+                apiData.trend === "up" ||
+                apiData.trend === "down" ||
+                apiData.trend === "neutral"
+                  ? apiData.trend
+                  : card.trend,
+              percentage:
+                typeof apiData.percentage === "number"
+                  ? apiData.percentage
+                  : card.percentage,
               comparisonText: apiData.change_label ?? card.comparisonText,
             } satisfies StatCard;
           });
@@ -455,43 +425,29 @@ export const Dashboard = memo(function Dashboard() {
 
         // Update weekly comparison data
         if (data?.weekly_comparison) {
-          setWeeklyComparison(data.weekly_comparison.map((item: any) => ({
-            day: item.day,
-            thisWeek: item.this_week,
-            lastWeek: item.last_week,
-          })));
+          setWeeklyComparison(
+            data.weekly_comparison.map((item: any) => ({
+              day: item.day,
+              thisWeek: item.this_week,
+              lastWeek: item.last_week,
+            }))
+          );
         }
 
         // Update alerts
         if (data?.alerts) {
-          setAlerts(data.alerts.map((alert: any) => ({
-            id: parseInt(alert.id),
-            type: alert.type,
-            message: alert.message,
-            icon: AlertTriangle, // Default icon, you can map different icons based on type
-          })));
+          setAlerts(
+            data.alerts.map((alert: any) => ({
+              id: parseInt(alert.id),
+              type: alert.type,
+              message: alert.message,
+              icon: AlertTriangle, // Default icon, you can map different icons based on type
+            }))
+          );
         }
 
         // Update department data
-        if (data?.department_performance && Array.isArray(data.department_performance)) {
-          setDepartmentData(data.department_performance.map((dept: any) => {
-            // Get actual values from API
-            const present = dept.present ?? 0;
-            const absent = dept.absent ?? 0;
-            const onLeave = dept.on_leave ?? 0;
-            const total = present + absent + onLeave;
-            
-            // Calculate percentage
-            const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
-            
-            return {
-              department: dept.department || dept.name || "Unknown",
-              present: present,
-              total: total,
-              percentage: percentage,
-            };
-          }));
-        }
+        
       } catch (error) {
         console.error("Failed to load attendance summary", error);
         setMetricCards(STATS_TEMPLATE.map((card) => ({ ...card })));
@@ -501,15 +457,95 @@ export const Dashboard = memo(function Dashboard() {
     fetchSummary();
   }, [selectedDate]);
 
+  useEffect(() => {
+          const fetchDeptPerformance = async () => {
+            setIsDeptLoading(true);
+            try {
+              const dateString = selectedDate.toLocaleDateString("en-CA");
+              const { data } = await api.get<DepartmentPerformanceResponse[]>(
+                `${env.attendanceApiUrl}/summary/department-performance`, // <-- Your new endpoint
+                {
+                  params: { selected_date: dateString },
+                  headers: { Authorization: `Bearer Token` }, // Ensure auth is correct
+                }
+              );
+
+              // Transform API data to our frontend DepartmentDatum type
+              const transformedData = data.map((dept) => ({
+                department: dept.department,
+                present: dept.present,
+                total: dept.total_employees,
+                absent: dept.absent,
+                onLeave: dept.on_leave,
+                late: dept.late,
+                percentage:
+                  dept.total_employees > 0
+                    ? Math.round((dept.present / dept.total_employees) * 100)
+                    : 0,
+              }));
+              setDepartmentData(transformedData);
+            } catch (error) {
+              console.error("Failed to fetch department performance:", error);
+              setDepartmentData([]);
+            } finally {
+              setIsDeptLoading(false);
+            }
+          };
+
+          fetchDeptPerformance();
+        }, [selectedDate, env.attendanceApiUrl]);
+
+  useEffect(() => {
+    // 1. Define the async function to fetch data
+    const fetchLiveCheckins = async () => {
+      // Set loading to true *unless* it's a background refresh
+      // (This is a simple way, you could also check if liveActivity.length > 0)
+      if (liveActivity.length === 0) {
+        setIsActivityLoading(true);
+      }
+
+      try {
+        const dateString = selectedDate.toLocaleDateString("en-CA"); // YYYY-MM-DD
+
+        // 2. Call your new API endpoint
+        const { data } = await api.get<ActivityItem[]>(
+          `${env.attendanceApiUrl}/summary/live-checkins`,
+          {
+            params: { selected_date: dateString },
+            headers: { Authorization: `Bearer Token` }, // Use your auth
+          }
+        );
+
+        // 3. Set the data in state
+        setLiveActivity(data);
+      } catch (error) {
+        console.error("Failed to fetch live check-ins:", error);
+        setLiveActivity([]); // On error, set to empty array
+      } finally {
+        setIsActivityLoading(false); // 4. Set loading to false
+      }
+    };
+
+    // 5. Fetch immediately when date changes
+    fetchLiveCheckins();
+
+    // 6. Set up the 30-second polling interval
+    const intervalId = setInterval(fetchLiveCheckins, 30000); // 30s
+
+    // 7. Clean up the interval when the component unmounts or date changes
+    return () => clearInterval(intervalId);
+  }, [selectedDate, env.attendanceApiUrl]);
+
   const filteredActivity = useMemo(() => {
     if (activityFilter === "all") {
-      return RECENT_ACTIVITY;
+      return liveActivity; // 👈 Changed
     }
     if (activityFilter === "late") {
-      return RECENT_ACTIVITY.filter((activity) => activity.status === "Late");
+      return liveActivity.filter((activity) => activity.status === "Late"); // 👈 Changed
     }
-    return RECENT_ACTIVITY.filter((activity) => activity.status !== "Late");
-  }, [activityFilter]);
+    // This filter for "Early" seems to just mean "On Time"
+    return liveActivity.filter((activity) => activity.status === "On Time"); // 👈 Changed
+  }, [activityFilter, liveActivity]);
 
   const weeklyComparisonData = useMemo(
     () => weeklyComparison.map((item) => ({ ...item })),
@@ -558,7 +594,7 @@ export const Dashboard = memo(function Dashboard() {
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0">
-              <Calendar
+            <Calendar
               mode="single"
               selected={selectedDate}
               onSelect={(date?: Date) => {
@@ -599,9 +635,7 @@ export const Dashboard = memo(function Dashboard() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <p
-                      className="text-[40px] leading-none tracking-tight sm:text-[48px]"
-                    >
+                    <p className="text-[40px] leading-none tracking-tight sm:text-[48px]">
                       {stat.value}
                     </p>
                     {stat.label.includes("Present") && (
@@ -663,7 +697,7 @@ export const Dashboard = memo(function Dashboard() {
                     stroke="#6b7280"
                     fontSize={12}
                     tickLine={false}
-                    domain={[200, 230]}
+                    domain={[10, 10]}
                   />
                   <Tooltip
                     contentStyle={{
@@ -732,7 +766,7 @@ export const Dashboard = memo(function Dashboard() {
         </Card>
       </section>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+      <div className="grid  grid-cols-1 gap-6 xl:grid-cols-1">
         <section className="xl:col-span-2" aria-label="Recent attendance">
           <Card className="p-6">
             <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -770,51 +804,83 @@ export const Dashboard = memo(function Dashboard() {
               </Tabs>
             </div>
             <div className="space-y-3">
-              {filteredActivity.map((activity) => (
-                <article
-                  key={activity.id}
-                  className="flex items-center gap-4 rounded-lg border border-transparent p-4 transition-all duration-200 hover:border-border hover:bg-accent"
-                >
-                  <img
-                    src={activity.avatar}
-                    alt={activity.name}
-                    className="h-12 w-12 shrink-0 rounded-full border-2 border-background shadow-sm"
-                  />
-                  <div className="flex-1 space-y-1">
-                    <p className="text-[16px] leading-none">{activity.name}</p>
-                    <p className="text-[14px] text-muted-foreground">
-                      {activity.department} • {activity.time}
+              {/* --- 1. LOADING STATE --- */}
+              {isActivityLoading && (
+                <div className="flex h-40 items-center justify-center gap-3 text-muted-foreground">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span className="text-sm">Loading check-ins...</span>
+                </div>
+              )}
+
+              {/* --- 2. EMPTY STATE (Your "No one arrived" feature) --- */}
+              {!isActivityLoading && filteredActivity.length === 0 && (
+                <div className="flex h-40 flex-col items-center justify-center gap-4 rounded-lg border border-dashed bg-muted/50 p-6 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-background">
+                    <UserRoundSearch className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-semibold">
+                      No Recent Check-ins
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      {activityFilter === "all"
+                        ? "No one has checked in recently."
+                        : `No ${activityFilter} check-ins to show.`}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {activity.status === "On Time" ? (
-                      <CheckCircle2
-                        className="h-5 w-5 text-green-600"
-                        aria-hidden="true"
-                      />
-                    ) : (
-                      <AlertCircle
-                        className="h-5 w-5 text-orange-600"
-                        aria-hidden="true"
-                      />
-                    )}
-                    <span
-                      className={`text-[14px] ${
-                        activity.status === "On Time"
-                          ? "text-green-600"
-                          : "text-orange-600"
-                      }`}
-                    >
-                      {activity.status}
-                    </span>
-                  </div>
-                </article>
-              ))}
+                </div>
+              )}
+
+              {/* --- 3. DATA STATE (The original list) --- */}
+              {!isActivityLoading &&
+                filteredActivity.length > 0 &&
+                filteredActivity.map((activity) => (
+                  <article
+                    key={activity.id}
+                    className="flex items-center gap-4 rounded-lg border border-transparent p-4 transition-all duration-200 hover:border-border hover:bg-accent"
+                  >
+                    <img
+                      src={activity.avatar}
+                      alt={activity.name}
+                      className="h-12 w-12 shrink-0 rounded-full border-2 border-background shadow-sm"
+                    />
+                    <div className="flex-1 space-y-1">
+                      <p className="text-[16px] leading-none">
+                        {activity.name}
+                      </p>
+                      <p className="text-[14px] text-muted-foreground">
+                        {activity.department} • {activity.time}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {activity.status === "On Time" ? (
+                        <CheckCircle2
+                          className="h-5 w-5 text-green-600"
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        <AlertCircle
+                          className="h-5 w-5 text-orange-600"
+                          aria-hidden="true"
+                        />
+                      )}
+                      <span
+                        className={`text-[14px] ${
+                          activity.status === "On Time"
+                            ? "text-green-600"
+                            : "text-orange-600"
+                        }`}
+                      >
+                        {activity.status}
+                      </span>
+                    </div>
+                  </article>
+                ))}
             </div>
           </Card>
         </section>
 
-        <aside className="space-y-6" aria-label="Quick actions">
+        {/* <aside className="space-y-6" aria-label="Quick actions">
           <QuickActions />
           <Card className="p-6">
             <h2 className="mb-6 text-[18px]">Punctuality This Week</h2>
@@ -868,7 +934,7 @@ export const Dashboard = memo(function Dashboard() {
               </div>
             </div>
           </Card>
-        </aside>
+        </aside> */}
       </div>
 
       <section aria-label="Department performance">
@@ -885,46 +951,63 @@ export const Dashboard = memo(function Dashboard() {
               Export
             </Button>
           </div>
-          <ResponsiveContainer width="100%" height={400}>
-            <BarChart
-              data={departmentPerformance}
-              margin={{ top: 5, right: 20, left: 20, bottom: 5 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis
-                dataKey="department"
-                stroke="#6b7280"
-                fontSize={12}
-                tickLine={false}
-                angle={-45}
-                textAnchor="end"
-                height={80}
-              />
-              <YAxis
-                stroke="#6b7280"
-                fontSize={12}
-                tickLine={false}
-                domain={[0, 100]}
-                label={{
-                  value: "Attendance %",
-                  angle: -90,
-                  position: "insideLeft",
-                  fontSize: 12,
-                }}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#ffffff",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: "8px",
-                  fontSize: "14px",
-                  padding: "16px",
-                  boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
-                }}
-                formatter={(_: unknown, __: unknown, props: any) => {
+          <div className="h-[400px]">
+            {" "}
+            {/* Container to prevent layout shift */}
+            {isDeptLoading && (
+              <div className="flex h-full items-center justify-center gap-3 text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span className="text-sm">Loading performance data...</span>
+              </div>
+            )}
+            {!isDeptLoading && departmentPerformance.length === 0 && (
+              <div className="flex h-full flex-col items-center justify-center gap-4 rounded-lg border border-dashed bg-muted/50 p-6 text-center">
+                <BarChart className="h-6 w-6 text-muted-foreground" />
+                <h4 className="text-sm font-semibold">No Department Data</h4>
+                <p className="text-sm text-muted-foreground">
+                  No performance data found for this date.
+                </p>
+              </div>
+            )}
+            {!isDeptLoading && departmentPerformance.length > 0 && (
+              <ResponsiveContainer width="100%" height={400}>
+                <BarChart
+                  data={departmentPerformance}
+                  margin={{ top: 5, right: 20, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis
+                    dataKey="department"
+                    stroke="#6b7280"
+                    fontSize={12}
+                    tickLine={false}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis
+                    stroke="#6b7280"
+                    fontSize={12}
+                    tickLine={false}
+                    domain={[0, 100]}
+                    label={{
+                      value: "Attendance %",
+                      angle: -90,
+                      position: "insideLeft",
+                      fontSize: 12,
+                    }}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#ffffff",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "8px",
+                      fontSize: "14px",
+                      padding: "16px",
+                      boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+                    }}
+                    formatter={(_: unknown, __: unknown, props: any) => {
                   const dept = props.payload as DepartmentDatum;
-                  const absent = dept.total - dept.present;
-                  const onLeave = Math.floor(dept.total * 0.05);
                   return [
                     <div key="tooltip" className="space-y-2">
                       <div className="border-b border-gray-200 pb-2">
@@ -939,11 +1022,21 @@ export const Dashboard = memo(function Dashboard() {
                         </div>
                         <div className="flex justify-between gap-4">
                           <span className="text-red-600">Absent:</span>
-                          <strong>{Math.max(absent - onLeave, 0)}</strong>
+                          <strong>{dept.absent}</strong> {/* <-- UPDATED */}
                         </div>
                         <div className="flex justify-between gap-4">
                           <span className="text-purple-600">On Leave:</span>
-                          <strong>{onLeave}</strong>
+                          <strong>{dept.onLeave}</strong> {/* <-- UPDATED */}
+                        </div>
+                        <div className="flex justify-between gap-4">
+                          <span className="text-orange-600">Late:</span>
+                          <strong>{dept.late}</strong> {/* <-- ADDED */}
+                        </div>
+                      </div>
+                      <div className="border-t border-gray-200 pt-2">
+                        <div className="flex justify-between gap-4">
+                          <span>Total Employees:</span>
+                          <strong>{dept.total}</strong>
                         </div>
                       </div>
                       <div className="border-t border-gray-200 pt-2">
@@ -960,38 +1053,40 @@ export const Dashboard = memo(function Dashboard() {
                     "",
                   ];
                 }}
-                labelFormatter={() => ""}
-                cursor={{ fill: "rgba(0, 0, 0, 0.05)" }}
-              />
-              <Bar
-                dataKey="percentage"
-                radius={[8, 8, 0, 0]}
-                label={{
-                  position: "top",
-                  formatter: (value: number) => `${value}%`,
-                  fontSize: 12,
-                  fill: "#374151",
-                }}
-              >
-                {departmentPerformance.map((entry, index) => (
-                  <Cell
-                    key={`cell-${entry.department}-${index}`}
-                    fill={
-                      entry.percentage >= 90
-                        ? "#16a34a"
-                        : entry.percentage >= 85
-                        ? "#84cc16"
-                        : "#f97316"
-                    }
+                    labelFormatter={() => ""}
+                    cursor={{ fill: "rgba(0, 0, 0, 0.05)" }}
                   />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+                  <Bar
+                    dataKey="percentage"
+                    radius={[8, 8, 0, 0]}
+                    label={{
+                      position: "top",
+                      formatter: (value: number) => `${value}%`,
+                      fontSize: 12,
+                      fill: "#374151",
+                    }}
+                  >
+                    {departmentPerformance.map((entry, index) => (
+                      <Cell
+                        key={`cell-${entry.department}-${index}`}
+                        fill={
+                          entry.percentage >= 90
+                            ? "#16a34a"
+                            : entry.percentage >= 85
+                            ? "#84cc16"
+                            : "#f97316"
+                        }
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
         </Card>
       </section>
 
-      <section aria-label="Attendance analytics">
+      {/* <section aria-label="Attendance analytics">
         <Card className="p-6">
           <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
@@ -1147,7 +1242,7 @@ export const Dashboard = memo(function Dashboard() {
             </div>
           </div>
         </Card>
-      </section>
+      </section> */}
     </main>
   );
 });

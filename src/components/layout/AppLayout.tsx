@@ -82,11 +82,6 @@ const Notifications = lazy(() =>
     default: module.Notifications,
   }))
 );
-const MyPortal = lazy(() =>
-  import("@/components/MyPortal").then((module) => ({
-    default: module.MyPortal,
-  }))
-);
 const MyProfile = lazy(() =>
   import("@/components/MyProfile").then((module) => ({
     default: module.MyProfile,
@@ -98,7 +93,7 @@ const EmployeeDashboard = lazy(() =>
   }))
 );
 
-const viewRegistry: Record<string, LazyExoticComponent<ComponentType>> = {
+const viewRegistry: Record<string, LazyExoticComponent<ComponentType<any>>> = {
   dashboard: Dashboard,
   "add-employee": AddEmployee,
   "employee-details": EmployeeDetails,
@@ -115,7 +110,6 @@ const viewRegistry: Record<string, LazyExoticComponent<ComponentType>> = {
   reports: Reports,
   "system-settings": SystemSettings,
   notifications: Notifications,
-  "my-portal": MyPortal,
   "my-profile": MyProfile,
   "employee-dashboard": EmployeeDashboard,
 };

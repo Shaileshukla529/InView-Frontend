@@ -123,7 +123,7 @@ export const getKeyMetrics = async (
   try {
     const response = await attendanceApi.get<Record<string, KeyMetric>>('/analytics/metrics', {
       params: {
-        selected_date: target_date || new Date().toISOString().split('T')[0],
+        selected_date: target_date || new Date().toLocaleDateString('en-CA'),
       },
     });
 

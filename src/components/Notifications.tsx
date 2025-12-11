@@ -2,27 +2,22 @@ import { useState, useEffect } from 'react';
 import { Card } from './ui/card';
 import {
   Bell,
-  UserPlus,
   Calendar,
   AlertCircle,
   CheckCircle,
   X,
   Check,
-  Mail,
-  Volume2,
-  VolumeX,
-  MoreVertical,
   Clock,
   Info,
   AlertTriangle,
   UserCheck,
   Camera,
+  MoreVertical,
+  UserPlus,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Switch } from './ui/switch';
 import { Label } from './ui/label';
-import { Slider } from './ui/slider';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,19 +41,9 @@ interface Notification {
   isRead: boolean;
 }
 
-interface NotificationPreference {
-  id: string;
-  label: string;
-  description: string;
-  enabled: boolean;
-}
-
 export function Notifications() {
   const { markNotificationsAsRead } = useAuth();
   const [filterType, setFilterType] = useState<'all' | 'warning' | 'info' | 'request'>('all');
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [soundVolume, setSoundVolume] = useState([75]);
-  const [emailNotifications, setEmailNotifications] = useState(true);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -225,39 +210,6 @@ export function Notifications() {
     },
   ];
 
-  const [preferences, setPreferences] = useState<NotificationPreference[]>([
-    {
-      id: 'attendance',
-      label: 'Employee attendance updates',
-      description: 'Receive notifications when employees check in/out and attendance milestones',
-      enabled: true,
-    },
-    {
-      id: 'leave',
-      label: 'Leave request notifications',
-      description: 'Get notified when employees submit, update, or cancel leave requests',
-      enabled: true,
-    },
-    {
-      id: 'device',
-      label: 'Device status alerts',
-      description: 'Receive alerts when cameras go offline or experience technical issues',
-      enabled: true,
-    },
-    {
-      id: 'maintenance',
-      label: 'System maintenance updates',
-      description: 'Stay informed about scheduled maintenance and system updates',
-      enabled: true,
-    },
-    {
-      id: 'security',
-      label: 'Security alerts',
-      description: 'Critical notifications about unauthorized access and security events',
-      enabled: true,
-    },
-  ]);
-
   // Group notifications by time period
   const groupNotificationsByTime = (notifs: Notification[]) => {
     const now = new Date();
@@ -326,13 +278,6 @@ export function Notifications() {
       // ignore, we already updated UI optimistically
     }
     toast.success('All notifications marked as read');
-  };
-
-  const handleTogglePreference = (id: string) => {
-    setPreferences(
-      preferences.map((p) => (p.id === id ? { ...p, enabled: !p.enabled } : p))
-    );
-    toast.success('Preference updated');
   };
 
   const getNotificationStyle = (type: string) => {
@@ -630,149 +575,6 @@ export function Notifications() {
             )}
           </>
         )}
-      </section>
-
-      {/* Notification Settings */}
-      <section aria-label="Notification settings">
-        <Card className="border-2 shadow-sm">
-          <div className="border-b border-border bg-muted/30 px-4 sm:px-6 py-4">
-            <h2 className="text-lg sm:text-xl font-semibold leading-tight tracking-tight">
-              Notification Preferences
-            </h2>
-            <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
-              Customize what notifications you want to receive
-            </p>
-          </div>
-
-          <div className="p-4 sm:p-6 space-y-6">
-            {/* Notification Type Preferences */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Notification Types
-              </h3>
-              <div className="space-y-4">
-                {preferences.map((pref) => (
-                  <div
-                    key={pref.id}
-                    className="flex items-start gap-3 sm:gap-4 rounded-lg border border-border p-4 transition-all duration-200 hover:border-primary/30 hover:bg-muted/30"
-                  >
-                    <Switch
-                      id={pref.id}
-                      checked={pref.enabled}
-                      onCheckedChange={() => handleTogglePreference(pref.id)}
-                      className="mt-0.5"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <Label
-                        htmlFor={pref.id}
-                        className="text-sm sm:text-base font-medium leading-tight cursor-pointer"
-                      >
-                        {pref.label}
-                      </Label>
-                      <p className="mt-1 text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                        {pref.description}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Sound Settings */}
-            <div className="space-y-4 pt-4 border-t border-border">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Sound Settings
-              </h3>
-              <div className="space-y-6">
-                <div className="flex items-start gap-3 sm:gap-4 rounded-lg border border-border p-4 transition-all duration-200 hover:border-primary/30 hover:bg-muted/30">
-                  <Switch
-                    id="sound-enabled"
-                    checked={soundEnabled}
-                    onCheckedChange={setSoundEnabled}
-                    className="mt-0.5"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      {soundEnabled ? (
-                        <Volume2 className="h-4 w-4 text-primary" />
-                      ) : (
-                        <VolumeX className="h-4 w-4 text-muted-foreground" />
-                      )}
-                      <Label
-                        htmlFor="sound-enabled"
-                        className="text-sm sm:text-base font-medium leading-tight cursor-pointer"
-                      >
-                        Notification Sounds
-                      </Label>
-                    </div>
-                    <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                      Play a sound when you receive new notifications
-                    </p>
-                  </div>
-                </div>
-
-                {soundEnabled && (
-                  <div className="rounded-lg border border-border p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="volume" className="text-sm font-medium">
-                        Volume
-                      </Label>
-                      <span className="text-sm font-semibold text-primary">
-                        {soundVolume[0]}%
-                      </span>
-                    </div>
-                    <Slider
-                      id="volume"
-                      value={soundVolume}
-                      onValueChange={setSoundVolume}
-                      max={100}
-                      step={5}
-                      className="w-full"
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Email Notifications */}
-            <div className="space-y-4 pt-4 border-t border-border">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Email Notifications
-              </h3>
-              <div className="flex items-start gap-3 sm:gap-4 rounded-lg border border-border p-4 transition-all duration-200 hover:border-primary/30 hover:bg-muted/30">
-                <Switch
-                  id="email-notifications"
-                  checked={emailNotifications}
-                  onCheckedChange={setEmailNotifications}
-                  className="mt-0.5"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Mail className="h-4 w-4 text-primary" />
-                    <Label
-                      htmlFor="email-notifications"
-                      className="text-sm sm:text-base font-medium leading-tight cursor-pointer"
-                    >
-                      Email Notifications
-                    </Label>
-                  </div>
-                  <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                    Receive important notifications via email as well as in-app
-                  </p>
-                  {emailNotifications && (
-                    <div className="mt-3 p-3 rounded-lg bg-blue-50 border border-blue-200">
-                      <p className="text-xs text-blue-900 leading-relaxed">
-                        <strong>Email:</strong> admin@inview.com
-                        <br />
-                        Emails will be sent for critical alerts and daily summaries
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </Card>
       </section>
     </main>
   );

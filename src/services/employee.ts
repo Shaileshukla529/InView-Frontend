@@ -246,12 +246,16 @@ export const employeeService = {
    * Get employee statistics
    */
   async getEmployeeStatistics(): Promise<EmployeeStatsResponse> {
-    const response = await employeeApi.get('/employees/statistics');
+    const response = await api.get(`${env.attendanceApiUrl}/employees/statistics`,
+       {
+         headers: { Authorization: `Bearer Token` }, 
+                }
+    );
     return response.data as EmployeeStatsResponse;
   },
 
   /**
-   * Get filter options
+   * Get filter optionss
    */
   async getEmployeeFilters(): Promise<FiltersResponse> {
     const response = await employeeApi.get('/employees/filters');

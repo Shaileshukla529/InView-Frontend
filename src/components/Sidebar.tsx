@@ -5,16 +5,12 @@ import {
   UserPlus,
   FileText,
   CalendarCheck,
-  BarChart3,
-  FileSignature,
-  PieChart,
   Video,
   FileBarChart,
   Settings,
   Bell,
   User,
   CheckCircle,
-  Clock,
   UserCheck,
   type LucideIcon,
 } from 'lucide-react';
@@ -47,14 +43,13 @@ const MENU_SECTIONS: MenuSection[] = [
     title: 'OVERVIEW',
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+      // { id: 'analytics', label: 'Analytics', icon: BarChart3 }, // Hidden for now
     ],
   },
   {
     title: 'PERSONAL',
     items: [
       { id: 'employee-dashboard', label: 'My Dashboard', icon: UserCheck },
-      { id: 'my-portal', label: 'My Portal', icon: User },
     ],
   },
   {
@@ -71,16 +66,17 @@ const MENU_SECTIONS: MenuSection[] = [
     items: [
       { id: 'daily-attendance', label: "Today's Check In", icon: CheckCircle },
       { id: 'monthly-register', label: 'Monthly Register', icon: CalendarCheck },
-      { id: 'attendance-analytics', label: 'Analytics', icon: Clock },
+      // { id: 'attendance-analytics', label: 'Analytics', icon: Clock },
     ],
   },
-  {
-    title: 'LEAVE MANAGEMENT',
-    items: [
-      { id: 'leave-requests', label: 'Leave Requests', icon: FileSignature, badge: 3 },
-      { id: 'leave-analytics', label: 'Leave History', icon: PieChart },
-    ],
-  },
+  // Commented out - Leave Management hidden for now
+  // {
+  //   title: 'LEAVE MANAGEMENT',
+  //   items: [
+  //     { id: 'leave-requests', label: 'Leave Requests', icon: FileSignature, badge: 3 },
+  //     { id: 'leave-analytics', label: 'Leave History', icon: PieChart },
+  //   ],
+  // },
   {
     title: 'STREAMING',
     items: [
@@ -115,13 +111,6 @@ export const Sidebar = memo(({ activeView, setActiveView, sidebarOpen, setSideba
       filteredSections = MENU_SECTIONS.filter(section => 
         section.title === 'PERSONAL' || section.title === 'SETTINGS'
       ).map(section => {
-        if (section.title === 'PERSONAL') {
-          // For employees, remove "My Portal" from Personal section
-          return {
-            ...section,
-            items: section.items.filter(item => item.id === 'employee-dashboard')
-          };
-        }
         if (section.title === 'SETTINGS') {
           // For employees, show only notifications
           return {
@@ -237,8 +226,8 @@ export const Sidebar = memo(({ activeView, setActiveView, sidebarOpen, setSideba
             <User className="h-5 w-5" aria-hidden="true" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[14px] font-medium">Admin User</p>
-            <p className="text-[12px] text-muted-foreground">admin@inview.com</p>
+            <p className="truncate text-[14px] font-medium">{user?.name || 'User'}</p>
+            <p className="text-[12px] text-muted-foreground">{user?.email || 'user@inview.com'}</p>
           </div>
         </button>
       </div>

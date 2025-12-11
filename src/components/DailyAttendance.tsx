@@ -433,7 +433,7 @@ export function DailyAttendance() {
             </div>
           </div>
 
-          {/* Quick Action Buttons */}
+          {/* Quick Action Buttons
           <div className="mt-6 flex flex-wrap gap-3 border-t border-border pt-6">
             <Button 
               variant="outline" 
@@ -457,7 +457,7 @@ export function DailyAttendance() {
               <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
               Mark Attendance
             </Button>
-          </div>
+          </div> */}
         </Card>
       </section>
 

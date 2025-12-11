@@ -13,8 +13,6 @@ import {
   XCircle,
   Clock,
   FileText,
-  BarChart3,
-  Printer,
   ChevronDown,
   Loader2,
   AlertTriangle
@@ -363,14 +361,6 @@ export function MonthlyRegister() {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-3">
-          <Button variant="outline" size="default" className="gap-2 transition-all duration-200 hover:bg-accent">
-            <Printer className="h-4 w-4" aria-hidden="true" />
-            <span className="hidden sm:inline">Print</span>
-          </Button>
-          <Button variant="outline" size="default" className="gap-2 transition-all duration-200 hover:bg-accent">
-            <BarChart3 className="h-4 w-4" aria-hidden="true" />
-            <span className="hidden sm:inline">View Report</span>
-          </Button>
           <Button 
             size="default" 
             className="gap-2 transition-all duration-200 hover:scale-[0.98]"

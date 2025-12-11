@@ -10,13 +10,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from './ui/dialog';
 import { Label } from './ui/label';
 import {
   Download,
@@ -34,8 +27,6 @@ import {
   CheckCircle2,
   AlertCircle,
   File,
-  CalendarClock,
-  Repeat,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -62,9 +53,6 @@ export function Reports() {
   const [selectedPeriod, setSelectedPeriod] = useState('this-month');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedReports, setSelectedReports] = useState<string[]>([]);
-  const [showScheduleDialog, setShowScheduleDialog] = useState(false);
-  const [scheduleFrequency, setScheduleFrequency] = useState('daily');
-  const [scheduleReport, setScheduleReport] = useState('');
 
   const reports: ReportCard[] = [
     {
@@ -202,20 +190,6 @@ export function Reports() {
     setSelectedReports([]);
   };
 
-  const handleScheduleReport = (reportTitle: string) => {
-    setScheduleReport(reportTitle);
-    setShowScheduleDialog(true);
-  };
-
-  const handleSaveSchedule = () => {
-    toast.success('Report scheduled', {
-      description: `${scheduleReport} will be generated ${scheduleFrequency}`,
-    });
-    setShowScheduleDialog(false);
-    setScheduleReport('');
-    setScheduleFrequency('daily');
-  };
-
   const getStatusBadge = (status: string) => {
     const variants = {
       completed: {
@@ -309,7 +283,7 @@ export function Reports() {
 
       {/* Summary Cards */}
       <section aria-label="Report summary statistics">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Card className="border border-border bg-card p-4 md:p-6 shadow-sm transition-all duration-200 hover:border-blue-200 hover:shadow-md">
             <div className="space-y-2 md:space-y-3">
               <div className="flex items-center justify-between">
@@ -319,7 +293,6 @@ export function Reports() {
                 </div>
               </div>
               <p className="text-[28px] md:text-[32px] font-semibold leading-none tracking-tight text-blue-600">6</p>
-              <p className="text-[11px] md:text-[12px] text-muted-foreground">Report Templates Available</p>
             </div>
           </Card>
 
@@ -332,7 +305,6 @@ export function Reports() {
                 </div>
               </div>
               <p className="text-[28px] md:text-[32px] font-semibold leading-none tracking-tight text-green-600">24</p>
-              <p className="text-[11px] md:text-[12px] text-muted-foreground">This month</p>
             </div>
           </Card>
 
@@ -347,22 +319,6 @@ export function Reports() {
               <p className="text-[14px] md:text-[16px] font-semibold leading-tight tracking-tight text-purple-600">
                 Monthly Attendance
               </p>
-              <p className="text-[11px] md:text-[12px] text-muted-foreground">15 downloads</p>
-            </div>
-          </Card>
-
-          <Card className="border border-border bg-card p-4 md:p-6 shadow-sm transition-all duration-200 hover:border-orange-200 hover:shadow-md">
-            <div className="space-y-2 md:space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-[13px] md:text-[14px] font-medium text-muted-foreground">Last Generated</p>
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-50">
-                  <Clock className="h-5 w-5 text-orange-600" aria-hidden="true" />
-                </div>
-              </div>
-              <p className="text-[14px] md:text-[16px] font-semibold leading-tight tracking-tight text-orange-600">
-                2 hours ago
-              </p>
-              <p className="text-[11px] md:text-[12px] text-muted-foreground">Department Summary</p>
             </div>
           </Card>
         </div>
@@ -400,24 +356,13 @@ export function Reports() {
                         </div>
                       </div>
 
-                      <div className="flex gap-2">
-                        <Button
-                          className="flex-1 gap-2 transition-all duration-200 hover:scale-[0.98]"
-                          onClick={() => handleGenerateReport(report.title)}
-                        >
-                          <Download className="h-4 w-4" aria-hidden="true" />
-                          Generate
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="shrink-0 transition-all duration-200 hover:scale-[0.98]"
-                          onClick={() => handleScheduleReport(report.title)}
-                          title="Schedule Report"
-                        >
-                          <CalendarClock className="h-4 w-4" aria-hidden="true" />
-                        </Button>
-                      </div>
+                      <Button
+                        className="w-full gap-2 transition-all duration-200 hover:scale-[0.98]"
+                        onClick={() => handleGenerateReport(report.title)}
+                      >
+                        <Download className="h-4 w-4" aria-hidden="true" />
+                        Generate
+                      </Button>
                     </div>
                   </Card>
                 );
@@ -572,92 +517,6 @@ export function Reports() {
           </div>
         </Card>
       </section>
-
-      {/* Schedule Report Dialog */}
-      <Dialog open={showScheduleDialog} onOpenChange={setShowScheduleDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                <Repeat className="h-5 w-5 text-primary" aria-hidden="true" />
-              </div>
-              Schedule Report
-            </DialogTitle>
-            <DialogDescription>
-              Set up automatic generation for "{scheduleReport}"
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-6 py-4">
-            <div className="space-y-3">
-              <Label htmlFor="frequency" className="text-[14px] font-medium">
-                Frequency
-              </Label>
-              <Select value={scheduleFrequency} onValueChange={setScheduleFrequency}>
-                <SelectTrigger id="frequency">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="daily">
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4" aria-hidden="true" />
-                      <span>Daily</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="weekly">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" aria-hidden="true" />
-                      <span>Weekly</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="monthly">
-                    <div className="flex items-center gap-2">
-                      <CalendarDays className="h-4 w-4" aria-hidden="true" />
-                      <span>Monthly</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="quarterly">
-                    <div className="flex items-center gap-2">
-                      <BarChart3 className="h-4 w-4" aria-hidden="true" />
-                      <span>Quarterly</span>
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-              <div className="flex gap-3">
-                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600">
-                  <CheckCircle2 className="h-3 w-3 text-white" aria-hidden="true" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[13px] font-medium text-blue-900">
-                    Scheduled Report Details
-                  </p>
-                  <p className="text-[12px] text-blue-800">
-                    This report will be automatically generated {scheduleFrequency} and sent to your email.
-                    You can modify or cancel this schedule anytime from Settings.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-3">
-            <Button
-              variant="outline"
-              onClick={() => setShowScheduleDialog(false)}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleSaveSchedule} className="gap-2">
-              <Repeat className="h-4 w-4" aria-hidden="true" />
-              Schedule Report
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </main>
   );
 }
